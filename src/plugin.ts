@@ -6,7 +6,6 @@ import { mkdir } from "fs/promises";
 import { homedir } from "os";
 import { isAbsolute, join, relative, resolve } from "path";
 import { ToolMapper, type ToolUpdate } from "./acp/tools.js";
-import { startCursorOAuth } from "./auth";
 import { LineBuffer } from "./streaming/line-buffer.js";
 import { MixedDeltaTracker } from "./streaming/delta-tracker.js";
 import { StreamToSseConverter, formatSseDone } from "./streaming/openai-sse.js";
@@ -164,6 +163,9 @@ const CURSOR_PROXY_HOST = "127.0.0.1";
 const CURSOR_PROXY_DEFAULT_PORT = 32124;
 const CURSOR_PROXY_DEFAULT_BASE_URL = `http://${CURSOR_PROXY_HOST}:${CURSOR_PROXY_DEFAULT_PORT}/v1`;
 const REUSE_EXISTING_PROXY = process.env.CURSOR_ACP_REUSE_EXISTING_PROXY !== "false";
+
+// Stored API key from auth loader (OpenCode auth store)
+let storedApiKey: string | undefined;
 
 function getGlobalKey(): string {
   return "__opencode_cursor_proxy_server__";
@@ -634,6 +636,39 @@ async function ensureCursorProxyServer(workspaceDirectory: string, toolRouter?: 
   // Mark as starting to avoid duplicate starts in-process.
   state.baseURL = "";
 
+  /**
+   * Resolve API key from multiple sources with priority:
+   * 1. process.env.CURSOR_API_KEY (highest priority)
+   * 2. storedApiKey (from OpenCode auth loader)
+   * 3. Authorization header from request (format: "Bearer <key>" or just "<key>")
+   */
+  const resolveApiKey = (authHeader?: string | null): string | undefined => {
+    // Priority 1: environment variable
+    const envKey = process.env.CURSOR_API_KEY;
+    if (envKey && envKey.trim()) {
+      return envKey;
+    }
+
+    // Priority 2: stored key from auth loader
+    if (storedApiKey && storedApiKey.trim()) {
+      return storedApiKey;
+    }
+
+    // Priority 3: Authorization header
+    if (authHeader && authHeader.trim()) {
+      const trimmed = authHeader.trim();
+      // Handle "Bearer <key>" format
+      if (trimmed.toLowerCase().startsWith("bearer ")) {
+        const key = trimmed.slice(7).trim();
+        return key || undefined;
+      }
+      // Handle raw key format
+      return trimmed || undefined;
+    }
+
+    return undefined;
+  };
+
       const handler = async (req: Request): Promise<Response> => {
         try {
           const url = new URL(req.url);
@@ -720,10 +755,11 @@ async function ensureCursorProxyServer(workspaceDirectory: string, toolRouter?: 
         msgRoles: msgSummaryBun.join(","),
       });
 
-      const apiKey = process.env.CURSOR_API_KEY;
+      const authHeader = req.headers.get("authorization");
+      const apiKey = resolveApiKey(authHeader);
       if (!apiKey || !apiKey.trim()) {
         return new Response(
-          JSON.stringify({ error: "CURSOR_API_KEY not set. Add it to your .env file and restart." }),
+          JSON.stringify({ error: "Cursor API key not found. Set CURSOR_API_KEY, run `opencode auth login`, or set provider options.apiKey in opencode.json." }),
           { status: 401, headers: { "Content-Type": "application/json" } },
         );
       }
@@ -1168,10 +1204,11 @@ async function ensureCursorProxyServer(workspaceDirectory: string, toolRouter?: 
         msgRoles: msgSummary.join(","),
       });
 
-      const apiKeyNode = process.env.CURSOR_API_KEY;
+      const authHeaderNode = req.headers["authorization"] as string | undefined;
+      const apiKeyNode = resolveApiKey(authHeaderNode);
       if (!apiKeyNode || !apiKeyNode.trim()) {
         res.writeHead(401, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "CURSOR_API_KEY not set. Add it to your .env file and restart." }));
+        res.end(JSON.stringify({ error: "Cursor API key not found. Set CURSOR_API_KEY, run `opencode auth login`, or set provider options.apiKey in opencode.json." }));
         return;
       }
 
@@ -1974,29 +2011,24 @@ export const CursorPlugin: Plugin = async ({ $, directory, worktree, client, ser
     tool: { ...toolHookEntries, ...mcpToolEntries },
     auth: {
       provider: CURSOR_PROVIDER_ID,
-      async loader(_getAuth: () => Promise<Auth>) {
+      async loader(getAuth: () => Promise<Auth>) {
+        // Load API key from OpenCode auth store and cache it.
+        // Never throw: a missing/unreadable auth entry must not break plugin load.
+        try {
+          const auth = await getAuth();
+          if (auth?.type === "api" && auth.key) {
+            storedApiKey = auth.key;
+            log.debug("Stored API key from auth loader");
+          }
+        } catch (err) {
+          log.debug("No stored auth available", { error: String(err) });
+        }
         return {};
       },
       methods: [
         {
-          label: "Cursor OAuth",
-          type: "oauth",
-          async authorize() {
-            try {
-              log.info("Starting OAuth flow");
-              const { url, instructions, callback } = await startCursorOAuth();
-              log.debug("Got OAuth URL", { url: url.substring(0, 50) + "..." });
-              return {
-                url,
-                instructions,
-                method: "auto" as const,
-                callback,
-              };
-            } catch (error) {
-              log.error("OAuth error", { error });
-              throw error;
-            }
-          },
+          type: "api" as const,
+          label: "Cursor API Key (cursor.com/settings)",
         },
       ],
     },

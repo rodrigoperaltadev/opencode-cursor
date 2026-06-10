@@ -65,55 +65,6 @@ export async function pollForAuthFile(
   });
 }
 
-/**
- * Auth via Cursor API key (replaces cursor-agent login OAuth flow).
- *
- * If CURSOR_API_KEY is already set, returns immediately as authenticated.
- * Otherwise, shows instructions to obtain one from cursor.com/settings.
- */
-export async function startCursorOAuth(): Promise<{
-  url: string;
-  instructions: string;
-  callback: () => Promise<AuthResult>;
-}> {
-  const apiKey = process.env.CURSOR_API_KEY;
-
-  if (apiKey && apiKey.trim().length > 0) {
-    log.info("CURSOR_API_KEY found, using API key auth");
-    return {
-      url: "https://cursor.com/settings",
-      instructions: "CURSOR_API_KEY is already set. Click OK to continue.",
-      callback: async () => ({
-        type: "success",
-        provider: "cursor-acp",
-        key: "cursor-auth",
-      }),
-    };
-  }
-
-  // API key not set — guide user to obtain one
-  log.info("CURSOR_API_KEY not set, showing instructions");
-  return {
-    url: "https://cursor.com/settings",
-    instructions:
-      "Open cursor.com/settings, find your API key, then set it in your environment:\n" +
-      "  export CURSOR_API_KEY=\"crsr_...\"\n" +
-      "Then restart OpenCode.",
-    callback: async () => {
-      // Re-check after user comes back
-      const key = process.env.CURSOR_API_KEY;
-      if (key && key.trim().length > 0) {
-        return { type: "success", provider: "cursor-acp", key: "cursor-auth" };
-      }
-      return {
-        type: "failed",
-        error:
-          "CURSOR_API_KEY is not set. Add it to your environment and restart OpenCode.",
-      };
-    },
-  };
-}
-
 export function verifyCursorAuth(): boolean {
   // API key takes priority over auth file
   const apiKey = process.env.CURSOR_API_KEY;

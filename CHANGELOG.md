@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
-- **Authentication:** `CURSOR_API_KEY` environment variable now required instead of OAuth via `cursor-agent login`. Get your API key from [cursor.com/settings](https://cursor.com/settings).
+- **Authentication:** API key authentication now supports three methods with priority: (1) `CURSOR_API_KEY` environment variable, (2) OpenCode auth store (`opencode auth login --provider cursor-acp`), (3) provider options in `opencode.json`. Get your API key from [cursor.com/settings](https://cursor.com/settings). Legacy OAuth flow via `cursor-agent login` is no longer supported.
 
 ### Changed
 

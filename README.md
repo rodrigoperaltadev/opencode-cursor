@@ -148,18 +148,46 @@ Add `"cursor-acp"` to the `plugin` array and reuse the provider block from Optio
 
 ## Authentication
 
-Set your Cursor API key in your environment:
+The plugin supports three methods to provide your Cursor API key, in priority order:
+
+### Option 1: Environment Variable (Highest Priority)
 
 ```bash
 export CURSOR_API_KEY=<your-api-key>
 ```
 
-Get your API key from [cursor.com/settings](https://cursor.com/settings) under **API Keys**.
-
 For persistent setup, add to your shell profile (`.bashrc`, `.zshrc`, etc.):
 ```bash
 export CURSOR_API_KEY=your-key-here
 ```
+
+### Option 2: OpenCode Auth Store
+
+Use OpenCode's built-in auth command to securely store your API key:
+
+```bash
+opencode auth login --provider cursor-acp
+```
+
+This stores your API key in OpenCode's auth store (encrypted at rest).
+
+### Option 3: Provider Configuration
+
+Set the API key directly in your `opencode.json` provider options:
+
+```json
+{
+  "provider": {
+    "cursor-acp": {
+      "options": {
+        "apiKey": "your-api-key-here"
+      }
+    }
+  }
+}
+```
+
+**Get your API key from [cursor.com/settings](https://cursor.com/settings) under API Keys.**
 
 ## Usage
 
