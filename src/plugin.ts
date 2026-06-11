@@ -1866,11 +1866,13 @@ function applyToolContextDefaults(
     args[key] = toAbsoluteWithBase(args[key], baseDir);
   }
 
-  if ((toolName === "bash" || toolName === "shell") && args.cwd === undefined && args.workdir === undefined) {
+  const baseName = toolName.startsWith("oc_") ? toolName.slice(3) : toolName;
+
+  if ((baseName === "bash" || baseName === "shell") && args.cwd === undefined && args.workdir === undefined) {
     args.cwd = baseDir;
   }
 
-  if ((toolName === "grep" || toolName === "glob" || toolName === "ls") && args.path === undefined) {
+  if ((baseName === "grep" || baseName === "glob" || baseName === "ls") && args.path === undefined) {
     args.path = baseDir;
   }
 
@@ -1915,6 +1917,11 @@ function buildToolHookEntries(registry: CoreRegistry, fallbackBaseDir?: string):
       });
 
     entries[t.name] = createEntry(t.name);
+
+    const ocAlias = `oc_${t.id}`;
+    if (!entries[ocAlias]) {
+      entries[ocAlias] = createEntry(ocAlias);
+    }
 
     // Some agent variants emit "shell" instead of "bash".
     if (t.name === "bash" && !entries.shell) {

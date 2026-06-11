@@ -54,6 +54,9 @@ describe("Plugin tool hook", () => {
     expect(toolNames).toContain("read");
     expect(toolNames).toContain("write");
     expect(toolNames).toContain("edit");
+    expect(toolNames).toContain("oc_edit");
+    expect(toolNames).toContain("oc_write");
+    expect(toolNames).toContain("oc_read");
     expect(toolNames).not.toContain("grep");
     expect(toolNames).toContain("ls");
     expect(toolNames).toContain("glob");
@@ -150,6 +153,43 @@ describe("Plugin tool hook", () => {
       );
 
       expect(realpathSync((out || "").trim())).toBe(realpathSync(projectDir));
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
+    }
+  });
+
+  it("executes oc_bash alias and defaults cwd to context directory", async () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "plugin-hook-oc-bash-"));
+    try {
+      const hooks = await CursorPlugin(createMockInput(projectDir));
+      const out = await hooks.tool?.oc_bash?.execute(
+        {
+          command: "pwd",
+        },
+        createToolContext(projectDir, projectDir),
+      );
+
+      expect(realpathSync((out || "").trim())).toBe(realpathSync(projectDir));
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
+    }
+  }, 15000);
+
+  it("executes oc_edit alias the same as edit", async () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "plugin-hook-oc-edit-"));
+    try {
+      const target = join(projectDir, "file.txt");
+      const hooks = await CursorPlugin(createMockInput(projectDir));
+      const { writeFileSync } = await import("fs");
+      writeFileSync(target, "hello world", "utf-8");
+
+      const out = await hooks.tool?.oc_edit?.execute(
+        { path: target, old_string: "hello", new_string: "hi" },
+        createToolContext(projectDir, projectDir),
+      );
+
+      expect(readFileSync(target, "utf-8")).toBe("hi world");
+      expect(out).toContain("edited successfully");
     } finally {
       rmSync(projectDir, { recursive: true, force: true });
     }
