@@ -158,7 +158,22 @@ describe("Plugin tool hook", () => {
     }
   });
 
+  it("executes oc_bash alias and defaults cwd to context directory", async () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "plugin-hook-oc-bash-"));
+    try {
+      const hooks = await CursorPlugin(createMockInput(projectDir));
+      const out = await hooks.tool?.oc_bash?.execute(
+        {
+          command: "pwd",
+        },
+        createToolContext(projectDir, projectDir),
+      );
 
+      expect(realpathSync((out || "").trim())).toBe(realpathSync(projectDir));
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
+    }
+  }, 15000);
 
   it("executes oc_edit alias the same as edit", async () => {
     const projectDir = mkdtempSync(join(tmpdir(), "plugin-hook-oc-edit-"));
@@ -180,7 +195,7 @@ describe("Plugin tool hook", () => {
     }
   });
 
- it("pins non-config workspace per session and reuses it when later context loses worktree", async () => {
+  it("pins non-config workspace per session and reuses it when later context loses worktree", async () => {
     const projectDir = mkdtempSync(join(tmpdir(), "plugin-hook-session-pin-project-"));
     const xdgConfigHome = mkdtempSync(join(tmpdir(), "plugin-hook-session-pin-xdg-"));
     const unexpectedDir = mkdtempSync(join(tmpdir(), "plugin-hook-session-pin-unexpected-"));

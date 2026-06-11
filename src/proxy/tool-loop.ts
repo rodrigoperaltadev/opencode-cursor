@@ -40,7 +40,6 @@ const TOOL_NAME_ALIASES = new Map<string, string>([
   // edit/write aliases
   ["ocedit", "edit"],
   ["strreplace", "edit"],
-  ["replace", "edit"],
   ["ocwrite", "write"],
   ["writefile", "write"],
   // read aliases
