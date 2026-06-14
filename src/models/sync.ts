@@ -189,7 +189,11 @@ export async function autoRefreshModels(
         compact: true,
       });
 
-      if (missingModels.length === 0 && result.removedCount === 0) {
+      if (
+        missingModels.length === 0
+        && result.removedCount === 0
+        && modelsEqual(existingModels, result.models)
+      ) {
         resolvedDeps.log.debug("Model auto-refresh: no new models found", {
           existing: Object.keys(existingModels).length,
           discovered: discovered.length,
@@ -233,4 +237,11 @@ export async function autoRefreshModels(
   } catch (err) {
     resolvedDeps.log.debug("Model auto-refresh failed", { error: String(err) });
   }
+}
+
+function modelsEqual(
+  left: Record<string, unknown>,
+  right: Record<string, unknown>,
+): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
 }
