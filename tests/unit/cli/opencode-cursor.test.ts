@@ -1,7 +1,7 @@
 // tests/unit/cli/opencode-cursor.test.ts
 import { describe, expect, it } from "bun:test";
 import { closeSync, mkdtempSync, openSync, rmSync, symlinkSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -130,6 +130,22 @@ describe("cli/opencode-cursor status", () => {
 });
 
 describe("cli/opencode-cursor path resolution", () => {
+  it("uses the default config path when no config is provided", () => {
+    const originalConfig = process.env.OPENCODE_CONFIG;
+    const expectedConfig = join(process.env.XDG_CONFIG_HOME || join(homedir(), ".config"), "opencode", "opencode.json");
+    delete process.env.OPENCODE_CONFIG;
+
+    try {
+      expect(resolvePaths({}).configPath).toBe(resolve(expectedConfig));
+    } finally {
+      if (originalConfig === undefined) {
+        delete process.env.OPENCODE_CONFIG;
+      } else {
+        process.env.OPENCODE_CONFIG = originalConfig;
+      }
+    }
+  });
+
   it("uses OPENCODE_CONFIG when --config is not provided", () => {
     const originalConfig = process.env.OPENCODE_CONFIG;
     const customConfig = join(tmpdir(), "cursor-models.json");
