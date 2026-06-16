@@ -1446,11 +1446,13 @@ async function ensureCursorProxyServer(workspaceDirectory: string, toolRouter?: 
         });
       } else {
         // Streaming
+        if (res.socket) res.socket.setNoDelay(true);
         res.writeHead(200, {
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache",
           Connection: "keep-alive",
         });
+        res.flushHeaders();
 
         const id = `cursor-acp-${Date.now()}`;
         const created = Math.floor(Date.now() / 1000);
