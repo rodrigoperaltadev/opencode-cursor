@@ -54,7 +54,11 @@ async function handleRequest(request) {
   const { id, model, cwd, prompt, resumeChatId, force, cursorAgent } = request;
 
   if (!id || !model || !cwd || prompt == null) {
-    console.error(`[cursor-agent-runner] Invalid request missing fields:`, request);
+    // Log only field presence and the request id; the request body includes
+    // the prompt, which must not be written to logs.
+    console.error(
+      `[cursor-agent-runner] Invalid request ${id || "<missing>"}: missing fields (model=${!!model} cwd=${!!cwd} prompt=${prompt != null})`,
+    );
     emitErrorEvent(id || "unknown", "Missing required fields: id, model, cwd, prompt");
     emitDone(id || "unknown", 1);
     return;

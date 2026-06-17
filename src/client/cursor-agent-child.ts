@@ -233,6 +233,15 @@ class CursorAgentPoolRunner {
     return id;
   }
 
+  /** Reject and error every pending request before tearing down the runner. */
+  private failAllPending(err: Error): void {
+    for (const [, pending] of this.pendingRequests.entries()) {
+      pending.promiseRejector(err);
+      pending.controller.error(err);
+    }
+    this.pendingRequests.clear();
+  }
+
   kill(): void {
     if (this.runnerProcess) {
       try {
@@ -242,7 +251,9 @@ class CursorAgentPoolRunner {
       }
       this.runnerProcess = null;
     }
-    this.pendingRequests.clear();
+    // Settle in-flight requests so their callers reject instead of hanging;
+    // a plain clear() would drop their terminal events.
+    this.failAllPending(new Error("Runner killed"));
   }
 }
 

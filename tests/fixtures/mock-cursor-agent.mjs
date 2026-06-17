@@ -22,5 +22,7 @@ process.stdout.write(
 );
 
 // Keep the process alive until killed. Safety net: exit if never cancelled.
+// 60s (unref'd) gives slow CI headroom so the net does not fire before the
+// test cancels the request; the interval keeps the loop alive regardless.
 setInterval(() => {}, 60_000);
-setTimeout(() => process.exit(2), 10_000);
+setTimeout(() => process.exit(2), 60_000).unref();

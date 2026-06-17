@@ -125,7 +125,11 @@ describe("cursor-agent pool: cancellation + demux", () => {
     runner.stdin.write(
       JSON.stringify({ id: "r1", model: "m", cwd: tmpdir(), prompt: "hi", cursorAgent: mockPath }) + "\n",
     );
-    await waitFor(() => lines.some((l) => l.includes('"id":"r1"') && l.includes('"event"')), 6000);
+    const r1Started = await waitFor(
+      () => lines.some((l) => l.includes('"id":"r1"') && l.includes('"event"')),
+      6000,
+    );
+    expect(r1Started).toBe(true);
     runner.stdin.write(
       JSON.stringify({ id: "r2", model: "m", cwd: tmpdir(), prompt: "hi", cursorAgent: mockPath }) + "\n",
     );
