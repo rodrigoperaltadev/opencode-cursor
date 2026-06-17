@@ -219,7 +219,8 @@ process.stdin.on("end", () => {
 
   if (scenario === "assistant-text-quota-exit") {
     process.stderr.write("You've hit your Cursor usage limit\\n");
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 });
 `;
