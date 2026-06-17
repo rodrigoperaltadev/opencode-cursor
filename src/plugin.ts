@@ -1185,6 +1185,9 @@ async function ensureCursorProxyServer(workspaceDirectory: string, toolRouter?: 
             stderr
             || stdout
             || `cursor-agent exited with code ${String(exitCode ?? "unknown")} and no output`;
+          // Only evict the cached chat ID when the failure indicates the resumed
+          // session itself is gone. Transient errors (network/auth/OOM/signals)
+          // should not discard a valid resume ID.
           if (resumeChatId && sessionResumeKey && isResumeSpecificFailure(errSource)) {
             clearResumeChatId(sessionResumeKey);
             log.warn("Evicting resume chatId after resume-specific cursor-agent failure", {
@@ -1442,6 +1445,9 @@ async function ensureCursorProxyServer(workspaceDirectory: string, toolRouter?: 
               const stderrText = await new Response(child.stderr).text();
               const errSource = (stderrText || "").trim()
                 || `cursor-agent exited with code ${String(exitCode ?? "unknown")} and no output`;
+              // Only evict the cached chat ID when the failure indicates the resumed
+              // session itself is gone. Transient errors (network/auth/OOM/signals)
+              // should not discard a valid resume ID.
               if (resumeChatId && sessionResumeKey && isResumeSpecificFailure(errSource)) {
                 clearResumeChatId(sessionResumeKey);
                 log.warn("Evicting resume chatId after resume-specific cursor-agent failure", {
@@ -1725,6 +1731,9 @@ async function ensureCursorProxyServer(workspaceDirectory: string, toolRouter?: 
               || stdout
               || spawnErrorText
               || `cursor-agent exited with code ${String(code ?? "unknown")} and no output`;
+            // Only evict the cached chat ID when the failure indicates the resumed
+            // session itself is gone. Transient errors (network/auth/OOM/signals)
+            // should not discard a valid resume ID.
             if (resumeChatId && sessionResumeKey && isResumeSpecificFailure(errSource)) {
               clearResumeChatId(sessionResumeKey);
               log.warn("Evicting resume chatId after resume-specific cursor-agent failure", {
@@ -1944,6 +1953,9 @@ async function ensureCursorProxyServer(workspaceDirectory: string, toolRouter?: 
                 const errSource =
                   stderrText
                   || `cursor-agent exited with code ${String(childExitCode ?? "unknown")} and no output`;
+                // Only evict the cached chat ID when the failure indicates the resumed
+                // session itself is gone. Transient errors (network/auth/OOM/signals)
+                // should not discard a valid resume ID.
                 if (resumeChatId && sessionResumeKey && isResumeSpecificFailure(errSource)) {
                   clearResumeChatId(sessionResumeKey);
                   log.warn("Evicting resume chatId after resume-specific cursor-agent failure", {
