@@ -1370,14 +1370,14 @@ async function ensureCursorProxyServer(workspaceDirectory: string, toolRouter?: 
                 continue;
               }
               captureResumeChatIdFromEvent(
-                  event,
-                  sessionResumeKey,
-                  model,
-                  workspaceDirectory,
-                  sessionResumeContentPrefix,
-                  sessionResumeToolFingerprint,
-                  sessionResumeSubagentFingerprint,
-                );
+                event,
+                sessionResumeKey,
+                model,
+                workspaceDirectory,
+                sessionResumeContentPrefix,
+                sessionResumeToolFingerprint,
+                sessionResumeSubagentFingerprint,
+              );
               if (isResult(event)) {
                 usage = extractOpenAiUsageFromResult(event) ?? usage;
               }
@@ -1852,14 +1852,14 @@ async function ensureCursorProxyServer(workspaceDirectory: string, toolRouter?: 
             const event = parseStreamJsonLine(line);
             if (!event) continue;
             captureResumeChatIdFromEvent(
-                  event,
-                  sessionResumeKey,
-                  model,
-                  workspaceDirectory,
-                  sessionResumeContentPrefix,
-                  sessionResumeToolFingerprint,
-                  sessionResumeSubagentFingerprint,
-                );
+              event,
+              sessionResumeKey,
+              model,
+              workspaceDirectory,
+              sessionResumeContentPrefix,
+              sessionResumeToolFingerprint,
+              sessionResumeSubagentFingerprint,
+            );
 
             if (isResult(event)) {
               usage = extractOpenAiUsageFromResult(event) ?? usage;
