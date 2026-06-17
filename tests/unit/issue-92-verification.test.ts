@@ -1,12 +1,14 @@
 import { describe, expect, it } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 type PackageJson = {
   scripts?: Record<string, string>;
 };
 
-const root = process.cwd();
+const here = dirname(fileURLToPath(import.meta.url));
+const root = resolve(here, "../..");
 const packageJson = JSON.parse(
   readFileSync(resolve(root, "package.json"), "utf8"),
 ) as PackageJson;
