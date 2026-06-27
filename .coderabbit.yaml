@@ -37,8 +37,8 @@ reviews:
         Handle context cancellation and return non-zero exit codes on fatal errors.
 
   auto_review:
-    enabled: true
-    auto_incremental_review: true
+    enabled: false
+    auto_incremental_review: false
     drafts: false
     base_branches:
       - main
@@ -61,4 +61,4 @@ reviews:
       enabled: false
 
 chat:
-  auto_reply: true
+  auto_reply: false
