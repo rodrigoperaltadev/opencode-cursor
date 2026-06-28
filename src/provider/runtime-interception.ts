@@ -412,17 +412,11 @@ export async function handleToolLoopEventV1(
     if (reroutedWrite) {
       const suspiciousOverwrite = detectSuspiciousStreamContentWrite(compat, reroutedWrite);
       if (suspiciousOverwrite) {
-        const hintChunk = createNonFatalSchemaValidationHintChunk(
-          responseMeta,
-          normalizedToolCall,
-          compat.validation,
-        );
         log.debug("Skipping suspicious streamContent edit-to-write reroute", {
           filePath: suspiciousOverwrite.filePath,
           existingLines: suspiciousOverwrite.existingLines,
           nextLines: suspiciousOverwrite.nextLines,
         });
-        await onToolResult(hintChunk);
         return {
           intercepted: false,
           skipConverter: true,

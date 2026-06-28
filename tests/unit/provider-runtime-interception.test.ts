@@ -517,8 +517,7 @@ describe("provider runtime interception fallback", () => {
 
     expect(result).toEqual({ intercepted: false, skipConverter: true });
     expect(interceptedCount).toBe(0);
-    expect(toolResults).toHaveLength(1);
-    expect(toolResults[0]?.choices?.[0]?.delta?.content).toContain("Skipped malformed tool call");
+    expect(toolResults).toHaveLength(0);
     expect(readFileSync(target, "utf-8").split("\n").slice(47, 52)).toEqual(["48", "49", "50", "51", "52"]);
   });
 

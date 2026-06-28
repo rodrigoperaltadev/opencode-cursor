@@ -11,6 +11,7 @@ export type ContentPart = TextContentPart | ImageContentPart | Record<string, un
 export type ProxyMessage = {
   role: string;
   content?: string | ContentPart[] | unknown;
+  name?: string;
   tool_call_id?: string;
   tool_calls?: Array<{
     id?: string;
@@ -33,6 +34,38 @@ export function extractTextContent(content: unknown): string {
   return "";
 }
 
+function formatAssistantToolCalls(message: ProxyMessage | undefined): string | null {
+  if (message?.role !== "assistant" || !Array.isArray(message.tool_calls) || message.tool_calls.length === 0) {
+    return null;
+  }
+
+  const calls = message.tool_calls.map((tc) => {
+    const fn = tc.function || {};
+    return `tool_call(id: ${tc.id || "?"}, name: ${fn.name || "?"}, args: ${fn.arguments || "{}"})`;
+  });
+  return `ASSISTANT: ${calls.join("\n")}`;
+}
+
+function buildToolCallNameMap(message: ProxyMessage | undefined): Map<string, string> {
+  const names = new Map<string, string>();
+  if (!message || !Array.isArray(message.tool_calls)) return names;
+  for (const tc of message.tool_calls) {
+    const id = tc.id;
+    const name = tc.function?.name;
+    if (id && name) names.set(id, name);
+  }
+  return names;
+}
+
+function formatToolResult(message: ProxyMessage, toolNames: Map<string, string>): string {
+  const callId = message.tool_call_id || "unknown";
+  const body = typeof message.content === "string" ? message.content : JSON.stringify(message.content ?? "");
+  const name = typeof message.name === "string" && message.name ? message.name : toolNames.get(callId);
+  return name
+    ? `TOOL_RESULT (name: ${name}, call_id: ${callId}): ${body}`
+    : `TOOL_RESULT (call_id: ${callId}): ${body}`;
+}
+
 /**
  * Returns prompt text for a resumed session. Falls back to null when delta
  * mode cannot be determined safely (caller should use full prompt builder).
@@ -44,13 +77,23 @@ export function buildIncrementalPrompt(messages: Array<ProxyMessage>): string | 
 
   // Tool-loop continuation: last messages are tool results
   if (last?.role === "tool") {
+    let firstToolIndex = messages.length - 1;
+    while (firstToolIndex > 0 && messages[firstToolIndex - 1]?.role === "tool") {
+      firstToolIndex--;
+    }
+
+    const assistant = messages[firstToolIndex - 1];
+    const toolNames = buildToolCallNameMap(assistant);
     const lines: string[] = [];
-    for (let i = messages.length - 1; i >= 0; i--) {
+    const assistantToolCalls = formatAssistantToolCalls(assistant);
+    if (assistantToolCalls) {
+      lines.push(assistantToolCalls);
+    }
+
+    for (let i = firstToolIndex; i < messages.length; i++) {
       const m = messages[i];
       if (m?.role !== "tool") break;
-      const callId = m.tool_call_id || "unknown";
-      const body = typeof m.content === "string" ? m.content : JSON.stringify(m.content ?? "");
-      lines.unshift(`TOOL_RESULT (call_id: ${callId}): ${body}`);
+      lines.push(formatToolResult(m, toolNames));
     }
     // Defensive: loop always unshifts at least once, so this is unreachable today.
     if (lines.length === 0) return null;

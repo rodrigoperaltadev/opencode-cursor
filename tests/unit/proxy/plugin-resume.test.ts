@@ -93,6 +93,42 @@ describe("plugin resume orchestration", () => {
     expect(followUp.usedIncremental).toBe(true);
   });
 
+  it("resolvePromptForBackend: resumed tool continuation includes matching tool call context", () => {
+    process.env.CURSOR_ACP_SESSION_RESUME = "1";
+    const firstTurn = {
+      ...baseInput,
+      messages: [{ role: "user", content: "Read foo.txt" }],
+      tools: [{ function: { name: "read", description: "Read files", parameters: { properties: {} } } }],
+    };
+    const { sessionKey, contentPrefix, toolFingerprint } = resolvePromptForBackend(firstTurn);
+    captureResumeChatIdFromEvent(
+      { type: "system", session_id: "chat-abc" } as any,
+      sessionKey,
+      "gpt-5",
+      "/workspace",
+      contentPrefix,
+      toolFingerprint,
+    );
+
+    const followUp = resolvePromptForBackend({
+      ...firstTurn,
+      messages: [
+        { role: "user", content: "Read foo.txt" },
+        {
+          role: "assistant",
+          content: null,
+          tool_calls: [{ id: "call_1", function: { name: "read", arguments: "{\"path\":\"foo.txt\"}" } }],
+        },
+        { role: "tool", tool_call_id: "call_1", content: "{\"content\":\"file contents\"}" },
+      ],
+    });
+
+    expect(followUp.resumeChatId).toBe("chat-abc");
+    expect(followUp.usedIncremental).toBe(true);
+    expect(followUp.prompt).toContain('tool_call(id: call_1, name: read, args: {"path":"foo.txt"})');
+    expect(followUp.prompt).toContain('TOOL_RESULT (name: read, call_id: call_1): {"content":"file contents"}');
+  });
+
   it("does not reuse a resume chat across diverged same-opening conversations", () => {
     process.env.CURSOR_ACP_SESSION_RESUME = "1";
     const firstTurn = resolvePromptForBackend(baseInput);

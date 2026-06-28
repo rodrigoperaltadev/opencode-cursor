@@ -62,7 +62,7 @@ describe("buildPromptFromMessages", () => {
     ];
     const result = buildPromptFromMessages(messages, []);
 
-    expect(result).toContain("TOOL_RESULT (call_id: call_1): file contents here");
+    expect(result).toContain("TOOL_RESULT (name: read, call_id: call_1): file contents here");
   });
 
   it("handles assistant messages with tool_calls", () => {
@@ -124,7 +124,7 @@ describe("buildPromptFromMessages", () => {
     // Should have the tool call
     expect(result).toContain("tool_call(id: c1, name: read");
     // Should have the tool result
-    expect(result).toContain("TOOL_RESULT (call_id: c1): hello world");
+    expect(result).toContain("TOOL_RESULT (name: read, call_id: c1): hello world");
     // Should have the final assistant message
     expect(result).toContain("ASSISTANT: The file contains: hello world");
   });
@@ -167,7 +167,7 @@ describe("buildPromptFromMessages", () => {
     ];
     const result = buildPromptFromMessages(messages, []);
 
-    expect(result).toContain("TOOL_RESULT (call_id: call_1): file contents here");
+    expect(result).toContain("TOOL_RESULT (name: read, call_id: call_1): file contents here");
     expect(result).toContain(
       "The above tool calls have been executed. Continue your response based on these results."
     );
@@ -199,8 +199,8 @@ describe("buildPromptFromMessages", () => {
     ];
     const result = buildPromptFromMessages(messages, []);
 
-    expect(result).toContain("TOOL_RESULT (call_id: call_1): contents of a");
-    expect(result).toContain("TOOL_RESULT (call_id: call_2): contents of b");
+    expect(result).toContain("TOOL_RESULT (name: read, call_id: call_1): contents of a");
+    expect(result).toContain("TOOL_RESULT (name: read, call_id: call_2): contents of b");
 
     // Suffix appears exactly once
     const suffixCount = result.split(

@@ -68,6 +68,12 @@ function buildToolSchemaBlock(tools: Array<any>): string {
   return block;
 }
 
+function formatToolResult(callId: string, name: string | undefined, body: string): string {
+  return name
+    ? `TOOL_RESULT (name: ${name}, call_id: ${callId}): ${body}`
+    : `TOOL_RESULT (call_id: ${callId}): ${body}`;
+}
+
 /**
  * Build a text prompt from OpenAI chat messages + tool definitions.
  * Handles role:"tool" result messages and assistant tool_calls that
@@ -114,12 +120,14 @@ export function buildPromptFromMessages(messages: Array<any>, tools: Array<any>,
       toolResultDetails: toolResults.length > 0 ? toolResults.map((m: any, i: number) => ({
         index: i,
         toolCallId: m?.tool_call_id,
+        name: m?.name,
         contentPreview: typeof m?.content === "string" ? m.content.slice(0, 100) : typeof m?.content,
       })) : [],
     });
   }
 
   const lines: string[] = [];
+  const toolCallNames = new Map<string, string>();
 
   if (tools.length > 0) {
     lines.push(buildToolSchemaBlock(tools));
@@ -140,11 +148,12 @@ export function buildPromptFromMessages(messages: Array<any>, tools: Array<any>,
     // tool result messages (from multi-turn tool execution loop)
     if (role === "tool") {
       const callId = message.tool_call_id || "unknown";
+      const name = typeof message.name === "string" && message.name ? message.name : toolCallNames.get(callId);
       const body =
         typeof message.content === "string"
           ? message.content
           : JSON.stringify(message.content ?? "");
-      lines.push(`TOOL_RESULT (call_id: ${callId}): ${body}`);
+      lines.push(formatToolResult(callId, name, body));
       continue;
     }
 
@@ -156,6 +165,9 @@ export function buildPromptFromMessages(messages: Array<any>, tools: Array<any>,
     ) {
       const tcTexts = message.tool_calls.map((tc: any) => {
         const fn = tc.function || {};
+        if (tc.id && fn.name) {
+          toolCallNames.set(tc.id, fn.name);
+        }
         return `tool_call(id: ${tc.id || "?"}, name: ${fn.name || "?"}, args: ${fn.arguments || "{}"})`;
       });
       const text = typeof message.content === "string" ? message.content : "";

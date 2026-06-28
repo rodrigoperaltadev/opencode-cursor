@@ -39,7 +39,8 @@ describe("buildIncrementalPrompt", () => {
       { role: "tool", tool_call_id: "call_1", content: "file contents" },
     ];
     const prompt = buildIncrementalPrompt(messages);
-    expect(prompt).toContain("TOOL_RESULT (call_id: call_1): file contents");
+    expect(prompt).toContain("tool_call(id: call_1, name: read, args: {})");
+    expect(prompt).toContain("TOOL_RESULT (name: read, call_id: call_1): file contents");
     expect(prompt).toContain("Continue your response based on these results.");
   });
 
@@ -62,9 +63,14 @@ describe("buildIncrementalPrompt", () => {
     const prompt = buildIncrementalPrompt(messages);
     expect(prompt).toBe(
       [
-        "TOOL_RESULT (call_id: call_1): alpha",
-        "TOOL_RESULT (call_id: call_2): beta",
-        "TOOL_RESULT (call_id: call_3): gamma",
+        [
+          "ASSISTANT: tool_call(id: call_1, name: read, args: {})",
+          "tool_call(id: call_2, name: read, args: {})",
+          "tool_call(id: call_3, name: read, args: {})",
+        ].join("\n"),
+        "TOOL_RESULT (name: read, call_id: call_1): alpha",
+        "TOOL_RESULT (name: read, call_id: call_2): beta",
+        "TOOL_RESULT (name: read, call_id: call_3): gamma",
         "The above tool calls have been executed. Continue your response based on these results.",
       ].join("\n\n"),
     );
@@ -81,7 +87,7 @@ describe("buildIncrementalPrompt", () => {
       { role: "tool", tool_call_id: "call_1", content: { status: "ok", data: [1, 2, 3] } },
     ];
     const prompt = buildIncrementalPrompt(messages);
-    expect(prompt).toContain('TOOL_RESULT (call_id: call_1): {"status":"ok","data":[1,2,3]}');
+    expect(prompt).toContain('TOOL_RESULT (name: read, call_id: call_1): {"status":"ok","data":[1,2,3]}');
   });
 
   it("falls back to unknown call_id when tool_call_id is missing", () => {
