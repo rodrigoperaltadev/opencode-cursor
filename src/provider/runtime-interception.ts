@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "fs";
 import type { ToolUpdate, ToolMapper } from "../acp/tools.js";
 import { extractOpenAiToolCall, type OpenAiToolCall, type ToolCallExtractionResult } from "../proxy/tool-loop.js";
-import type { StreamJsonToolCallEvent } from "../streaming/types.js";
+import type { StreamJsonToolCallEvent, StreamJsonToolCallPayload } from "../streaming/types.js";
 import type { ToolRouter } from "../tools/router.js";
 import { createLogger } from "../utils/logger.js";
 import {
@@ -54,6 +54,15 @@ export interface HandleToolLoopEventResult {
   intercepted: boolean;
   skipConverter: boolean;
   terminate?: ToolLoopTermination;
+  cursorOwnedMutation?: CursorOwnedMutation;
+}
+
+export interface CursorOwnedMutation {
+  tool: string;
+  path?: string;
+  status: "completed";
+  source: "cursor-agent";
+  reason: "completed_cursor_edit_success";
 }
 
 export interface ToolLoopGuardTermination {
@@ -412,14 +421,17 @@ export async function handleToolLoopEventV1(
     if (reroutedWrite) {
       const suspiciousOverwrite = detectSuspiciousStreamContentWrite(compat, reroutedWrite);
       if (suspiciousOverwrite) {
+        const cursorOwnedMutation = detectCursorOwnedMutation(event, normalizedToolCall.function.name);
         log.debug("Skipping suspicious streamContent edit-to-write reroute", {
           filePath: suspiciousOverwrite.filePath,
           existingLines: suspiciousOverwrite.existingLines,
           nextLines: suspiciousOverwrite.nextLines,
+          ...(cursorOwnedMutation ? { cursorOwnedMutation } : {}),
         });
         return {
           intercepted: false,
           skipConverter: true,
+          ...(cursorOwnedMutation ? { cursorOwnedMutation } : {}),
         };
       }
       log.debug("Rerouting malformed edit call to write", {
@@ -763,6 +775,37 @@ function detectSuspiciousStreamContentWrite(
   const lineShrink = nextLines <= Math.max(3, Math.floor(existingLines * 0.1));
   const byteShrink = content.length <= Math.max(120, Math.floor(existing.length * 0.1));
   return lineShrink && byteShrink ? { filePath, existingLines, nextLines } : null;
+}
+
+function detectCursorOwnedMutation(
+  event: StreamJsonToolCallEvent,
+  tool: string,
+): CursorOwnedMutation | undefined {
+  if (event.subtype !== "completed") {
+    return undefined;
+  }
+  const payload = firstToolPayload(event);
+  const result = isRecord(payload?.result) ? payload.result : undefined;
+  const success = isRecord(result?.success) ? result.success : undefined;
+  if (!success) {
+    return undefined;
+  }
+  return {
+    tool,
+    path: typeof success.path === "string" ? success.path : undefined,
+    status: "completed",
+    source: "cursor-agent",
+    reason: "completed_cursor_edit_success",
+  };
+}
+
+function firstToolPayload(event: StreamJsonToolCallEvent): StreamJsonToolCallPayload | undefined {
+  const toolCallPayload = event.tool_call;
+  if (!isRecord(toolCallPayload)) {
+    return undefined;
+  }
+  const first = Object.values(toolCallPayload)[0];
+  return isRecord(first) ? first as StreamJsonToolCallPayload : undefined;
 }
 
 function hasStreamContentArg(args: Record<string, unknown>): boolean {

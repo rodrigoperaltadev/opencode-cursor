@@ -24,6 +24,17 @@ This document describes the current runtime architecture on `main`, with the def
 - In `chat.params`, existing OpenCode tool definitions are preserved and passed through.
 - `cursor-acp` does not execute SDK/MCP tools in this mode; it translates tool-call protocol boundaries.
 
+### Cursor-native tool side effects
+
+The `cursor-agent --print --output-format stream-json` path can still execute Cursor-native tools inside the Cursor subprocess. Live tracing on Cursor Agent `2026.06.26-7079533` showed the Cursor child process opening the target file with `O_WRONLY|O_CREAT|O_TRUNC` while OpenCode only read it. The plugin can prevent a suspicious Cursor `streamContent` edit from being rerouted into an OpenCode `write`, but it cannot prevent Cursor's subprocess from mutating the file first.
+
+Prompt shape does not change that ownership boundary. A richer `LOCAL OPENCODE TOOL RESULT` prompt, with SDK-shaped completed tool-result data, still produced a Cursor `editToolCall` and a direct file mutation in live Composer 2.5 testing. That format may improve continuation quality, but it should not be treated as a write-control mechanism.
+
+Cursor CLI flags did not provide a drop-in fix:
+
+- `--sandbox enabled` still allowed Cursor's edit tool to change the file.
+- `--mode plan` kept the file unchanged, but returned planning/read-only behavior instead of an OpenCode-owned edit request.
+
 ### `proxy-exec` mode (legacy/compat mode)
 
 - `cursor-acp` can inject tool definitions and execute via internal router:

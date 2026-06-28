@@ -521,6 +521,56 @@ describe("provider runtime interception fallback", () => {
     expect(readFileSync(target, "utf-8").split("\n").slice(47, 52)).toEqual(["48", "49", "50", "51", "52"]);
   });
 
+  it("records completed Cursor-owned edits when skipping suspicious streamContent reroutes", async () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "runtime-cursor-owned-edit-"));
+    const target = join(projectDir, "test.txt");
+    writeFileSync(target, Array.from({ length: 100 }, (_, index) => index === 49 ? "test" : String(index + 1)).join("\n") + "\n");
+    let interceptedCount = 0;
+    const result = await handleToolLoopEventV1({
+      ...createBaseOptions({
+        event: {
+          type: "tool_call",
+          subtype: "completed",
+          call_id: "c_cursor_owned_edit",
+          tool_call: {
+            editToolCall: {
+              args: {
+                path: target,
+                streamContent: "49\ntest\n51",
+              },
+              result: {
+                success: {
+                  path: target,
+                  linesAdded: 1,
+                  linesRemoved: 1,
+                },
+              },
+            },
+          },
+        } as any,
+        allowedToolNames: new Set(["edit", "write"]),
+        toolSchemaMap: OPENCODE_EDIT_WRITE_SCHEMA_MAP,
+        onInterceptedToolCall: async () => {
+          interceptedCount += 1;
+        },
+      }),
+      boundary: createProviderBoundary("v1", "cursor-acp"),
+    });
+
+    expect(result).toEqual({
+      intercepted: false,
+      skipConverter: true,
+      cursorOwnedMutation: {
+        tool: "edit",
+        path: target,
+        status: "completed",
+        source: "cursor-agent",
+        reason: "completed_cursor_edit_success",
+      },
+    });
+    expect(interceptedCount).toBe(0);
+  });
+
   it("reroutes path+content edit missing old_string to write in legacy", async () => {
     const intercepted: OpenAiToolCall[] = [];
     const toolResults: any[] = [];
